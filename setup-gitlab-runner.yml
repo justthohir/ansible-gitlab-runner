@@ -1,0 +1,59 @@
+---
+- name: Set up GitLab Runner on VPS
+  hosts: vps
+  become: yes
+
+  vars_files:
+    - inventory.yml
+
+  tasks:
+    - name: Install dependencies
+      package:
+        name:
+          - curl
+          - ca-certificates
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Add GitLab GPG key
+      apt_key:
+        url: https://packages.gitlab.com/gpg.key
+        state: present
+
+    - name: Add GitLab package repository
+      apt_repository:
+        repo: deb https://packages.gitlab.com/runner/gitlab-runner/{{ ansible_distribution | lower }}/ {{ ansible_distribution_release }} main
+        state: present
+
+    - name: Install GitLab Runner
+      package:
+        name: gitlab-runner
+        state: present
+
+    - name: Configure GitLab Runner with authentication token
+      copy:
+        dest: /etc/gitlab-runner/config.toml
+        content: |
+          [[runners]]
+            name = "{{ gitlab_runner_name }}"
+            url = "{{ gitlab_runner_coordinator_url }}"
+            token = "{{ gitlab_runner_authentication_token }}"
+            executor = "shell"
+            [runners.custom_build_dir]
+            [runners.cache]
+              [runners.cache.s3]
+              [runners.cache.gcs]
+
+    - name: Ensure correct permissions on GitLab Runner config
+      file:
+        path: /etc/gitlab-runner/config.toml
+        owner: gitlab-runner
+        group: gitlab-runner
+        mode: "0600"
+
+    - name: Start and enable GitLab Runner service
+      service:
+        name: gitlab-runner
+        state: started
+        enabled: yes
