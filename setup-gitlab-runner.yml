@@ -52,6 +52,17 @@
         group: gitlab-runner
         mode: "0600"
 
+    - name: Add GitLab Runner to Docker group
+      user:
+        name: gitlab-runner
+        groups: docker
+        append: yes
+
+    - name: Restart Docker service
+      service:
+        name: docker
+        state: restarted
+
     - name: Start and enable GitLab Runner service
       service:
         name: gitlab-runner
